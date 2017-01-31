@@ -17,7 +17,8 @@ RULESET_URLS = [
     'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-botcc.portgrouped.rules',
     'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-malware.rules',
     'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-web_specific_apps.rules',
-    'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-trojan.rules'
+    'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-trojan.rules',
+    'https://rules.emergingthreats.net/open/snort-2.9.0/rules/emerging-tor.rules'
 ]
 
 class OSINTTest(unittest.TestCase):

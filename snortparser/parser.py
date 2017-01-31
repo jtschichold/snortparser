@@ -135,8 +135,142 @@ _SPLIT_OPTS_RE = re.compile("""\s*         # ignore preceeding whitespace
                                 \s*""", re.X)
 
 
+_BaseAddress = namedtuple(
+    '_BaseAddress',
+    field_names=['cidr', 'list', 'any', 'not_flag', 'variable', 'raw']
+)
+
+
+class Address(_BaseAddress):
+    @classmethod
+    def parse(cls, address):
+        address = address.strip()
+
+        raw = address
+
+        not_flag = False
+        if address[0] == '!':
+            address = address[1:]
+            not_flag = True
+
+        if address == 'any':
+            return cls(
+                cidr=None,
+                list=None,
+                any=True,
+                not_flag=not_flag,
+                variable=None,
+                raw=raw
+            )
+
+        if address[0] == '$':
+            return cls(
+                cidr=None,
+                list=None,
+                any=False,
+                not_flag=not_flag,
+                variable=address[1:],
+                raw=raw
+            )
+
+        if address[0] != '[':
+            return cls(
+                cidr=address,
+                list=None,
+                any=False,
+                not_flag=not_flag,
+                variable=None,
+                raw=raw
+            )
+
+        # list, let's recurse
+        return cls(
+            cidr=None,
+            list=[cls.parse(a) for a in address[1:-1].split(',')],
+            any=False,
+            not_flag=not_flag,
+            variable=None,
+            raw=raw
+        )
+
+
+_BasePort = namedtuple(
+    '_BasePort',
+    field_names=['any', 'range', 'list', 'not_flag', 'variable', 'raw']
+)
+
+
+class Port(_BasePort):
+    @classmethod
+    def parse(cls, port):
+        port = port.strip()
+        raw = port
+
+        not_flag = False
+        if port[0] == '!':
+            port = port[1:]
+            not_flag = True
+
+        if port == 'any':
+            return cls(
+                any=True,
+                range=None,
+                list=None,
+                variable=None,
+                not_flag=not_flag,
+                raw=raw
+            )
+
+        if port[0] == '$':
+            return cls(
+                any=False,
+                range=None,
+                list=None,
+                variable=port[1:],
+                not_flag=not_flag,
+                raw=raw
+            )
+
+        if port[0] != '[':
+            toks = port.split(':')
+
+            if len(toks) > 2:
+                raise RuntimeError('Invalid port: {}'.format(raw))
+
+            if len(toks) == 1:
+                start = int(toks[0])
+                stop = int(toks[0])
+
+            else:
+                start = 0
+                if len(toks[0]) != 0:
+                    start = int(toks[0])
+
+                stop = 65535
+                if len(toks[1]) != 0:
+                    stop = int(toks[1])
+
+            return cls(
+                any=False,
+                range=(start, stop),
+                list=None,
+                variable=None,
+                not_flag=not_flag,
+                raw=raw
+            )
+
+        return cls(
+            any=False,
+            range=None,
+            list=[cls.parse(p) for p in port[1:-1].split(',')],
+            variable=None,
+            not_flag=not_flag,
+            raw=raw
+        )
+
+
 _BaseRuleOption = namedtuple(
-    'RuleOption',
+    '_BaseRuleOption',
     field_names=['option', 'arguments', 'modifiers']
 )
 
@@ -173,6 +307,11 @@ class Rule(_BaseRule):
         # parse basic elements
         for n, e in enumerate(RULE_ELEMENTS_REQUIRED):
             elements[e] = values[n]
+
+        elements['src'] = Address.parse(elements['src'])
+        elements['dst'] = Address.parse(elements['dst'])
+        elements['src_port'] = Port.parse(elements['src_port'])
+        elements['dst_port'] = Port.parse(elements['dst_port'])
 
         # parse options
         opts = values[-1]
